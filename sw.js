@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ios-calc-v7';
+const CACHE_NAME = 'ios-calc-v8';
 const ASSETS = [
   './',
   './index.html',
