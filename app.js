@@ -82,6 +82,7 @@ function updateDisplay() {
 
 function num(n) {
   feedback(false);
+  if (reset) secretBuffer = '';
   secretBuffer = (secretBuffer + n).slice(-10);
   if (val === 'Error' || reset || val === '0') {
     val = n;
@@ -134,8 +135,14 @@ function clearAll() {
   operator = null;
   reset = false;
   secretBuffer = '';
+  activeGame = null;
+  if (stopwatchInterval) {
+    clearInterval(stopwatchInterval);
+    stopwatchInterval = null;
+  }
   exprEl.textContent = '';
   previewEl.textContent = '';
+  displayEl.style.color = '';
   updateDisplay();
 }
 
@@ -201,14 +208,20 @@ function equal(chaining = false) {
 }
 
 // ==========================================
-// 315+ SECRET CODES ENGINE
+// 820+ SECRET CODES & MAHABHARAT WISDOM ENGINE
 // ==========================================
 const secretStyle = document.createElement('style');
 document.head.appendChild(secretStyle);
 let reflexTimer = null;
 let reflexStart = 0;
+let activeGame = null;
+let guessTarget = 0;
+let guessTries = 0;
+let memorySeq = '';
+let stopwatchInterval = null;
+let stopwatchStart = 0;
 
-// 1. Theme Palette Generator (Codes 100 - 159 + Iconic Theme Codes)
+// 1. 55 Custom Theme Palettes
 const THEME_CODES = {
   '1999': ['IMPERIUM GOLD', '#d4af37', '#f5d76e'],
   '2077': ['CYBERPUNK NEON', '#ff007f', '#00f5d4'],
@@ -222,7 +235,7 @@ const THEME_CODES = {
   '105': ['ROSE GOLD', '#ff2d55', '#ffb3c1'],
   '106': ['TOXIC LIME', '#aacc00', '#d4d700'],
   '107': ['MIDNIGHT INDIGO', '#5e5ce6', '#a29bfe'],
-  '108': ['SAFFRON SPIRIT', '#ff6d00', '#ffab40'],
+  '108': ['SAFFRON DHARMA', '#ff6d00', '#ffab40'],
   '109': ['PLATINUM SILVER', '#8e8e93', '#e5e5ea'],
   '110': ['COBALT ELECTRIC', '#2979ff', '#82b1ff'],
   '111': ['ANGEL AURA', '#ffd60a', '#fff3b0'],
@@ -267,8 +280,10 @@ const THEME_CODES = {
   '150': ['SUPREME GOLD', '#ffb703', '#ffd166']
 };
 
-// 2. Constants, Mindset, Angel Numbers & Pop-Culture Codes (200+ codes)
+// 2. Sacred Mahabharat, Gita & Math Constants
 const MESSAGE_CODES = {
+  '18': ['KURUKSHETRA WAR', '18 DAYS'],
+  '700': ['BHAGAVAD GITA', '700 SHLOKAS'],
   '314': ['PI CONSTANT', '3.14159265'],
   '1618': ['GOLDEN RATIO (PHI)', '1.61803398'],
   '2718': ['EULER NUMBER (e)', '2.71828182'],
@@ -277,46 +292,80 @@ const MESSAGE_CODES = {
   '299792': ['SPEED OF LIGHT (km/s)', '299,792'],
   '1729': ['RAMANUJAN HARDY NO.', '1729'],
   '6174': ['KAPREKAR CONSTANT', '6174'],
-  '42': ['MEANING OF LIFE', '42'],
-  '369': ['TESLA KEY TO UNIVERSE', '3 - 6 - 9'],
-  '786': ['BLESSING & PEACE', '786'],
-  '222': ['ANGEL 222: BALANCE', 'ALIGNED'],
-  '333': ['ANGEL 333: GROWTH', 'EXPANDING'],
-  '444': ['ANGEL 444: PROTECTION', 'SHIELDED'],
-  '555': ['ANGEL 555: BIG CHANGE', 'EVOLVING'],
-  '888': ['ANGEL 888: ABUNDANCE', 'PROSPERITY'],
-  '999': ['ANGEL 999: COMPLETION', 'NEXT LEVEL'],
-  '1010': ['10:10 NEW CHAPTER', 'FOCUS'],
-  '1111': ['11:11 MAKE A WISH', 'LOCKED IN'],
-  '1212': ['12:12 STAY DISCIPLINED', 'EXECUTE'],
-  '2222': ['22:22 MASTER BUILDER', 'DOMINATE'],
-  '2408': ['LEGEND BIRTHDAY', '24 AUG'],
-  '2026': ['CURRENT YEAR', '2026'],
-  '420': ['CHILL MODE', 'RELAX'],
-  '808': ['TR-808 BASS DROP', 'BOOM'],
-  '911': ['EMERGENCY MODE', '911'],
-  '500': ['SERVER OVERLOAD', '500 ERR'],
-  '403': ['ACCESS FORBIDDEN', 'DENIED'],
-  '200': ['STATUS OK', '200 OK']
+  '42': ['GITA 2.47: KARMA', 'DO YOUR DUTY'],
+  '369': ['TRIGUNA: SATTVA RAJAS TAMAS', '3 - 6 - 9'],
+  '786': ['SHANTI & DHARMA', 'PEACE'],
+  '222': ['KRISHNA: SAMATVAM', 'STAY BALANCED'],
+  '333': ['ARJUNA: EKAGRATA', 'EYES ON GOAL'],
+  '444': ['DHARMO RAKSHATI', 'PROTECTED'],
+  '555': ['PARIVARTANAM', 'CHANGE IS LAW'],
+  '888': ['VIJAYA: VICTORY', 'TRIUMPH'],
+  '999': ['MOKSHA: LIBERATION', 'DETACHED'],
+  '1010': ['YUDHISHTHIRA: SATYA', 'TRUTH WINS'],
+  '1111': ['VISHWAROOPA DARSHAN', 'COSMIC FORM'],
+  '1212': ['BHISHMA PRATIGYA', 'UNBREAKABLE'],
+  '2222': ['KARNA: SURYAPUTRA', 'LOYAL & BOLD'],
+  '2408': ['JANMASHTAMI / LEGEND', '24 AUG'],
+  '2026': ['KALIYUGA YEAR', '2026'],
+  '420': ['SHAKUNI MAYA', 'ILLUSION'],
+  '808': ['PANCHAJANYA SHANKH', 'CONCH BLOW'],
+  '911': ['YADA YADA HI DHARMASYA', 'KRISHNA'],
+  '500': ['DURYODHANA PRIDE', 'EGO FALLS'],
+  '403': ['CHAKRAVYUHA', 'NO EXIT'],
+  '200': ['DHARMA VIJAYA', 'VICTORY']
 };
 
-// Auto-generate Codes 201 to 420 (Mindset, Leverage, Tech & Fun Presets)
-const EXTRA_QUOTES = [
-  'SILENCE IS POWER', 'STAY DANGEROUS', 'ZERO EXCUSES', 'PURE LEVERAGE', 'SELF COMMAND',
-  'OUTWORK EVERYONE', 'LASER FOCUS', 'COLD DISCIPLINE', 'BUILD IN SILENCE', 'NO MERCY',
-  'APEX MINDSET', 'BEHAVIORAL GRAVITY', 'OWN YOUR TIME', 'HIGH VALUE ONLY', 'UNSTOPPABLE',
-  'CALCULATED RISK', 'SHARP EDGE', 'IRON WILL', 'MASTER YOUR CRAFT', 'NEXT MOVE WIN',
-  'STAY HUNGRY', 'ELITE STANDARD', 'ZERO DISTRACTION', 'DEEP WORK', 'CASHFLOW KING',
-  'ASYMMETRIC BET', 'LONG TERM GAME', 'SILENT KILLER', 'PRECISION FIRST', 'NO LIMITS',
-  'FEARLESS MIND', 'RELENTLESS', 'ALPHA STATE', 'MENTAL FORTRESS', 'CONTROL THE ROOM',
-  'STRATEGIC PATIENCE', 'POWER MOVE', 'HIGH CONVICTION', 'EXECUTE NOW', 'PURE CLARITY'
+// Batch A: Codes 201 to 420 (Bhagavad Gita & Kurukshetra Wisdom)
+const GITA_QUOTES = [
+  'KARMA IS YOUR ONLY RIGHT', 'DETACH FROM THE FRUIT', 'SOUL IS IMMORTAL', 'RISE AND FIGHT ARJUNA',
+  'CONQUER YOUR OWN MIND', 'ANGER BREEDS DELUSION', 'SILENCE IS SUPREME', 'DHARMA PROTECTS DHARMA',
+  'FOCUS ON THE BIRD EYE', 'CHANGE IS NATURE LAW', 'FEAR IS ILLUSION', 'DUTY ABOVE DESIRE',
+  'STAND FIRM IN STORM', 'MIND IS FRIEND OR FOE', 'WISDOM BURNS KARMA', 'NEVER SURRENDER TRUTH',
+  'EQUANIMITY IS YOGA', 'ACT WITHOUT ATTACHMENT', 'TIME DESTROYS ALL', 'TRUTH ALONE TRIUMPHS',
+  'MASTER YOUR SENSES', 'DOUBT DESTROYS PEACE', 'BE STILL LIKE OCEAN', 'FAITH MOVES MOUNTAINS',
+  'SACRIFICE BUILDS POWER', 'EGO IS REAL ENEMY', 'SELF CONTROL IS KING', 'CHOOSE RIGHT OVER EASY',
+  'PATIENCE CONQUERS ALL', 'KNOW THY TRUE SELF', 'CLARITY DEFEATS FEAR', 'HONOR ABOVE LIFE',
+  'WALK THE PATH ALONE', 'STRENGTH IN SURRENDER', 'EVERY END IS START', 'BEYOND PLEASURE & PAIN',
+  'STEADFAST INTELLECT', 'KRISHNA GUIDES CHARIOT', 'NO REGRET NO FEAR', 'AWAKEN YOUR DHARMA'
 ];
 
 for (let i = 201; i <= 420; i++) {
   const codeStr = String(i);
   if (!MESSAGE_CODES[codeStr]) {
-    const quote = EXTRA_QUOTES[(i - 201) % EXTRA_QUOTES.length];
-    MESSAGE_CODES[codeStr] = [`CODE #${codeStr}`, quote];
+    MESSAGE_CODES[codeStr] = [`GITA #${codeStr}`, GITA_QUOTES[(i - 201) % GITA_QUOTES.length]];
+  }
+}
+
+// Batch B: 500 NEW CODES (501 to 998) — Mahabharat Characters, Vidura Neeti & War Strategy
+const MAHABHARAT_SPEAKERS = [
+  'SHRI KRISHNA', 'VIDURA NEETI', 'BHISHMA', 'ARJUNA', 'KARNA'
+];
+const MAHABHARAT_LINES = [
+  'YATO DHARMAH TATO JAYAH', 'NEVER TRUST ENEMY SWEET WORDS', 'BREAK THE CHAKRAVYUHA',
+  'GIVE EVEN WHEN EMPTY HANDED', 'PROMISE IS ABOVE THRONE', 'STRIKE WHEN TIME IS RIPE',
+  'A KING MUST CONTROL ANGER', 'HALF KNOWLEDGE IS DEADLY', 'LOYALTY DEFINES A WARRIOR',
+  'SILENCE DEFEATS FOOLISH TALK', 'CHOOSE KRISHNA OVER ARMY', 'NEVER BEG FOR YOUR RIGHT',
+  'WISDOM OUTLIVES WEAPONS', 'TEST FRIENDS IN ADVERSITY', 'STRATEGY BEATS BRUTE FORCE',
+  'HUMILITY IS TRUE STRENGTH', 'GUARD SECRETS LIKE TREASURE', 'EXCESS PRIDE DESTROYS KINGS',
+  'FORGIVENESS IS POWERFUL', 'LEARN FROM EVERY GURU', 'STAY CALM IN KURUKSHETRA',
+  'BOW ONLY TO DHARMA', 'DECISIVE ACTION WINS WAR', 'GREED BLINDS THE WISE',
+  'RESPECT TIME AND DESTINY', 'SHARPEN YOUR GANDIVA', 'UNITE STRENGTH WITH WISDOM',
+  'FACE FATE WITH A SMILE', 'TRUTH NEEDS NO DEFENSE', 'DUTY NEVER RETIRES',
+  'OBSERVE BEFORE YOU STRIKE', 'DO NOT FEAR DEATH', 'PROTECT THE INNOCENT',
+  'WORDS CUT DEEPER THAN ARROWS', 'CHARACTER IS REAL WEALTH', 'LEAD BY EXAMPLE',
+  'NEVER UNDERESTIMATE ANYONE', 'DESTINY FAVORS THE BRAVE', 'PEACE THROUGH STRENGTH',
+  'KILL DOUBT WITH KNOWLEDGE', 'ENDURE PAIN FOR GLORY', 'STAY UNSHAKEABLE',
+  'HONOR YOUR WORD ALWAYS', 'SEE THE BIGGER PICTURE', 'LIGHT CONQUERS DARKNESS',
+  'DISCIPLINE FORGES LEGENDS', 'SERVE WITHOUT EXPECTATION', 'RISE AFTER EVERY FALL',
+  'VICTORY FOLLOWS RIGHTEOUSNESS', 'KRISHNA IS ALWAYS WITH YOU'
+];
+
+for (let i = 501; i <= 998; i++) {
+  const codeStr = String(i);
+  if (!MESSAGE_CODES[codeStr] && !THEME_CODES[codeStr]) {
+    const speaker = MAHABHARAT_SPEAKERS[i % MAHABHARAT_SPEAKERS.length];
+    const line = MAHABHARAT_LINES[(i * 7) % MAHABHARAT_LINES.length];
+    MESSAGE_CODES[codeStr] = [`${speaker} #${codeStr}`, line];
   }
 }
 
@@ -324,30 +373,35 @@ function openCodeDirectory() {
   const modal = document.getElementById('history-modal');
   const list = document.getElementById('history-list');
   const allEntries = [
-    ['0999', 'Open This Master Secret Codebook'],
+    ['0999', 'Open Master Codebook (820+ Codes)'],
     ['0000', 'Reset Default iOS Theme'],
-    ['0011', 'Reflex Speed Test Mini-Game'],
-    ['1234', 'Hidden Private Calculator Vault'],
-    ['777', 'Lucky Slot Spin / Decision Maker'],
-    ['8888', 'Matrix Digital Rain (5 sec)'],
-    ['9999', 'Hacker Digit Scramble Override'],
-    ['80085', 'Flip Calculator Upside Down'],
-    ['5555', 'Boss / Panic Mode (Fake GST)'],
-    ['404', 'Error 404 Prank'],
-    ['0501', 'Coin Flip (HEADS / TAILS)'],
-    ['0502', 'Roll 6-Sided Dice (1-6)'],
-    ['0503', 'Generate 6-Digit Secret PIN'],
-    ['0504', 'Current Live Clock Time'],
-    ['0505', 'Current Screen & Device Info'],
+    ['0011', 'Game 1: Reflex Speed Test (ms)'],
+    ['777', 'Game 2: Lucky Slot Spin'],
+    ['0501', 'Game 3: Coin Flip (HEADS / TAILS)'],
+    ['0502', 'Game 4: Roll 6-Sided Dice (1-6)'],
+    ['0506', 'Game 5: Guess Secret Number (1-100)'],
+    ['0507', 'Game 6: 6-Digit Memory Challenge'],
+    ['0508', 'Game 7: Rock Paper Scissors'],
+    ['0509', 'Game 8: Daily Power & Luck %'],
+    ['0510', 'Tool: Live Stopwatch (Start/Stop)'],
+    ['1234', 'Tool: Hidden Private Vault'],
+    ['0503', 'Tool: Random 6-Digit PIN'],
+    ['0504', 'Tool: Current Live Clock Time'],
+    ['0505', 'Tool: Viewport Screen Resolution'],
+    ['8888', 'FX: Matrix Digital Rain (5 sec)'],
+    ['9999', 'FX: Hacker Digit Scramble'],
+    ['80085', 'FX: Flip Calculator Upside Down'],
+    ['5555', 'FX: Boss / Panic Mode (Fake GST)'],
+    ['404', 'FX: Error 404 Prank'],
     ...Object.entries(THEME_CODES).map(([k, v]) => [k, `Theme: ${v[0]}`]),
     ...Object.entries(MESSAGE_CODES).map(([k, v]) => [k, `${v[0]} → ${v[1]}`])
   ];
 
-  list.innerHTML = `<p style="color:var(--op-bg);font-size:13px;text-align:center;padding:6px 0;">Total Secret Codes Active: ${allEntries.length} (Type code + =)</p>` +
+  list.innerHTML = `<p style="color:var(--op-bg);font-size:13px;text-align:center;padding:6px 0;">Total Active Codes: ${allEntries.length} (Tap any code to run)</p>` +
     allEntries.map(([code, desc]) => `
-      <div class="history-item" style="display:flex;justify-content:space-between;align-items:center;text-align:left;" onclick="toggleHistory(false);secretBuffer='${code}';equal();">
-        <strong style="font-size:18px;color:var(--op-bg);">${code}</strong>
-        <small style="font-size:13px;">${desc}</small>
+      <div class="history-item" style="display:flex;justify-content:space-between;align-items:center;text-align:left;gap:12px;" onclick="toggleHistory(false);secretBuffer='${code}';equal();">
+        <strong style="font-size:17px;color:var(--op-bg);min-width:54px;">${code}</strong>
+        <small style="font-size:12px;text-align:right;">${desc}</small>
       </div>
     `).join('');
   modal.classList.add('open');
@@ -364,14 +418,55 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Open Master Codebook (0999 + =)
-  if (code.endsWith('0999')) {
+  if (activeGame === 'guess') {
+    const g = Number(val);
+    guessTries++;
+    if (g === guessTarget) {
+      exprEl.textContent = `WON IN ${guessTries} TRIES!`;
+      displayEl.style.color = '#30d158';
+      displayEl.textContent = `${g} ✓`;
+      activeGame = null;
+    } else if (g < guessTarget) {
+      exprEl.textContent = `TRY #${guessTries}: TOO LOW ↑`;
+      displayEl.textContent = 'HIGHER';
+    } else {
+      exprEl.textContent = `TRY #${guessTries}: TOO HIGH ↓`;
+      displayEl.textContent = 'LOWER';
+    }
+    val = '0';
+    return true;
+  }
+
+  if (activeGame === 'memory') {
+    if (code === memorySeq) {
+      exprEl.textContent = 'ARJUNA FOCUS!';
+      displayEl.style.color = '#30d158';
+      displayEl.textContent = 'PASSED ✓';
+    } else {
+      exprEl.textContent = `WAS ${memorySeq}`;
+      displayEl.style.color = '#ff453a';
+      displayEl.textContent = 'FAILED ✕';
+    }
+    activeGame = null;
+    val = '0';
+    return true;
+  }
+
+  if (activeGame === 'stopwatch') {
+    clearInterval(stopwatchInterval);
+    stopwatchInterval = null;
+    activeGame = null;
+    exprEl.textContent = 'STOPWATCH STOPPED';
+    val = '0';
+    return true;
+  }
+
+  if (code === '0999') {
     openCodeDirectory();
     return true;
   }
 
-  // Reset Theme (0000 + =)
-  if (code.endsWith('0000')) {
+  if (code === '0000') {
     secretStyle.textContent = '';
     exprEl.textContent = '';
     displayEl.style.color = '';
@@ -380,8 +475,7 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Reflex Mini-Game (0011 + =)
-  if (code.endsWith('0011')) {
+  if (code === '0011') {
     exprEl.textContent = 'WAIT FOR GREEN, THEN TAP =';
     displayEl.textContent = 'READY...';
     reflexTimer = 'waiting';
@@ -395,21 +489,9 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Private Vault (1234 + =)
-  if (code.endsWith('1234')) {
-    const savedNote = localStorage.getItem('ios_calc_vault') || '';
-    const updated = prompt('Private Calculator Vault:', savedNote);
-    if (updated !== null) {
-      localStorage.setItem('ios_calc_vault', updated);
-      showToast('Vault Saved');
-    }
-    return true;
-  }
-
-  // Lucky Slot / Decision Maker (777 + =)
-  if (code.endsWith('777')) {
+  if (code === '777') {
     let spins = 0;
-    const outcomes = ['7-7-7 WIN', 'YES ✓', 'NO ✕', 'DO IT NOW'];
+    const outcomes = ['7-7-7 WIN', 'YES ✓', 'NO ✕', 'ACT NOW'];
     const slot = setInterval(() => {
       displayEl.textContent = Math.floor(100 + Math.random() * 899);
       spins++;
@@ -423,8 +505,108 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Matrix Rain (8888 + =)
-  if (code.endsWith('8888')) {
+  if (code === '0501') {
+    exprEl.textContent = 'COIN FLIP';
+    displayEl.textContent = Math.random() < 0.5 ? 'HEADS' : 'TAILS';
+    val = '0';
+    return true;
+  }
+
+  if (code === '0502') {
+    exprEl.textContent = 'SHAKUNI DICE (1-6)';
+    displayEl.textContent = String(Math.floor(Math.random() * 6) + 1);
+    val = '0';
+    return true;
+  }
+
+  if (code === '0506') {
+    activeGame = 'guess';
+    guessTarget = Math.floor(1 + Math.random() * 100);
+    guessTries = 0;
+    displayEl.style.color = '';
+    exprEl.textContent = 'GUESS 1-100, TYPE & TAP =';
+    displayEl.textContent = '1 - 100';
+    val = '0';
+    return true;
+  }
+
+  if (code === '0507') {
+    memorySeq = String(Math.floor(100000 + Math.random() * 900000));
+    displayEl.style.color = '#ffd60a';
+    exprEl.textContent = 'MEMORIZE THIS NUMBER!';
+    displayEl.textContent = memorySeq;
+    val = '0';
+    setTimeout(() => {
+      displayEl.style.color = '';
+      exprEl.textContent = 'TYPE IT & TAP =';
+      displayEl.textContent = '? ? ? ? ? ?';
+      activeGame = 'memory';
+    }, 2200);
+    return true;
+  }
+
+  if (code === '0508') {
+    const rps = ['ROCK ✊', 'PAPER ✋', 'SCISSORS ✌️'];
+    exprEl.textContent = 'R - P - S';
+    displayEl.style.fontSize = '52px';
+    displayEl.textContent = rps[Math.floor(Math.random() * 3)];
+    val = '0';
+    return true;
+  }
+
+  if (code === '0509') {
+    const pct = Math.floor(75 + Math.random() * 25);
+    exprEl.textContent = 'TODAY POWER LEVEL';
+    displayEl.textContent = `${pct}% ⚡`;
+    val = '0';
+    return true;
+  }
+
+  if (code === '0510') {
+    activeGame = 'stopwatch';
+    stopwatchStart = performance.now();
+    exprEl.textContent = 'STOPWATCH (TAP = TO STOP)';
+    stopwatchInterval = setInterval(() => {
+      const sec = ((performance.now() - stopwatchStart) / 1000).toFixed(2);
+      displayEl.textContent = `${sec}s`;
+    }, 50);
+    val = '0';
+    return true;
+  }
+
+  if (code === '1234') {
+    const savedNote = localStorage.getItem('ios_calc_vault') || '';
+    const updated = prompt('Private Calculator Vault:', savedNote);
+    if (updated !== null) {
+      localStorage.setItem('ios_calc_vault', updated);
+      showToast('Vault Saved');
+    }
+    return true;
+  }
+
+  if (code === '0503') {
+    exprEl.textContent = 'RANDOM 6-DIGIT PIN';
+    displayEl.textContent = String(Math.floor(100000 + Math.random() * 900000));
+    val = '0';
+    return true;
+  }
+
+  if (code === '0504') {
+    const now = new Date();
+    exprEl.textContent = now.toDateString().toUpperCase();
+    displayEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    val = '0';
+    return true;
+  }
+
+  if (code === '0505') {
+    exprEl.textContent = 'VIEWPORT RESOLUTION';
+    displayEl.textContent = `${window.innerWidth}×${window.innerHeight}`;
+    val = '0';
+    return true;
+  }
+
+  if (code === '8888') {
     const chars = '01アイウエオカキクケコ79';
     let frames = 0;
     exprEl.textContent = 'MATRIX CONNECTED';
@@ -445,8 +627,7 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Hacker Override (9999 + =)
-  if (code.endsWith('9999')) {
+  if (code === '9999') {
     let ticks = 0;
     const scramble = setInterval(() => {
       displayEl.textContent = Math.floor(100000000 + Math.random() * 900000000);
@@ -462,8 +643,7 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Flip Screen (80085 + =)
-  if (code.endsWith('80085')) {
+  if (code === '80085') {
     const appEl = document.querySelector('.app');
     appEl.style.transition = 'transform 0.6s ease';
     appEl.style.transform = 'rotate(180deg)';
@@ -471,8 +651,7 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Boss Panic Mode (5555 + =)
-  if (code.endsWith('5555')) {
+  if (code === '5555') {
     secretStyle.textContent = '';
     displayEl.style.color = '';
     exprEl.textContent = '25,000 × 18% GST =';
@@ -481,8 +660,7 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Error 404 Prank (404 + =)
-  if (code.endsWith('404')) {
+  if (code === '404') {
     exprEl.textContent = 'ERROR 404';
     displayEl.textContent = 'NO BRAIN';
     if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
@@ -490,58 +668,21 @@ function triggerSecretCode(code) {
     return true;
   }
 
-  // Live Utility Codes (0501 - 0505)
-  if (code.endsWith('0501')) {
-    exprEl.textContent = 'COIN FLIP';
-    displayEl.textContent = Math.random() < 0.5 ? 'HEADS' : 'TAILS';
-    val = '0';
-    return true;
-  }
-  if (code.endsWith('0502')) {
-    exprEl.textContent = 'DICE ROLL';
-    displayEl.textContent = String(Math.floor(Math.random() * 6) + 1);
-    val = '0';
-    return true;
-  }
-  if (code.endsWith('0503')) {
-    exprEl.textContent = 'RANDOM 6-DIGIT PIN';
-    displayEl.textContent = String(Math.floor(100000 + Math.random() * 900000));
-    val = '0';
-    return true;
-  }
-  if (code.endsWith('0504')) {
-    const now = new Date();
-    exprEl.textContent = now.toDateString().toUpperCase();
-    displayEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    val = '0';
-    return true;
-  }
-  if (code.endsWith('0505')) {
-    exprEl.textContent = 'VIEWPORT RESOLUTION';
-    displayEl.textContent = `${window.innerWidth}×${window.innerHeight}`;
-    val = '0';
+  if (THEME_CODES[code]) {
+    const [name, opColor, textColor] = THEME_CODES[code];
+    secretStyle.textContent = `:root { --op-bg: ${opColor} !important; } #display { color: ${textColor}; }`;
+    exprEl.textContent = `${name} UNLOCKED`;
+    showToast(name);
     return true;
   }
 
-  // Check 55 Theme Codes
-  for (const [key, [name, opColor, textColor]] of Object.entries(THEME_CODES)) {
-    if (code === key || (key.length >= 3 && code.endsWith(key))) {
-      secretStyle.textContent = `:root { --op-bg: ${opColor} !important; } #display { color: ${textColor}; }`;
-      exprEl.textContent = `${name} UNLOCKED`;
-      showToast(name);
-      return true;
-    }
-  }
-
-  // Check 245+ Message, Constant & Mindset Codes
-  for (const [key, [title, msg]] of Object.entries(MESSAGE_CODES)) {
-    if (code === key || (key.length >= 3 && code.endsWith(key))) {
-      exprEl.textContent = title;
-      displayEl.style.fontSize = msg.length > 9 ? '44px' : '64px';
-      displayEl.textContent = msg;
-      val = '0';
-      return true;
-    }
+  if (MESSAGE_CODES[code]) {
+    const [title, msg] = MESSAGE_CODES[code];
+    exprEl.textContent = title;
+    displayEl.style.fontSize = msg.length > 16 ? '28px' : (msg.length > 10 ? '36px' : (msg.length > 7 ? '48px' : '64px'));
+    displayEl.textContent = msg;
+    val = '0';
+    return true;
   }
 
   return false;
