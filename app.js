@@ -2,7 +2,6 @@ let val = '0';
 let old = null;
 let operator = null;
 let reset = false;
-let soundEnabled = true;
 let historyData = JSON.parse(localStorage.getItem('ios_calc_history') || '[]');
 
 const displayEl = document.getElementById('display');
@@ -11,10 +10,9 @@ const previewEl = document.getElementById('live-preview');
 const clearBtn = document.getElementById('clear-btn');
 const toastEl = document.getElementById('toast');
 
-// Synthesized subtle iOS keyboard tap sound (zero external files)
+// Routes through Android's system volume & respects system mute/vibration settings
 let audioCtx = null;
 function playClick(isOperator = false) {
-  if (!soundEnabled) return;
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -23,7 +21,7 @@ function playClick(isOperator = false) {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(isOperator ? 520 : 410, audioCtx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.025);
-    gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.025);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -61,7 +59,6 @@ function updateDisplay() {
   const formatted = formatNumberStr(val);
   displayEl.textContent = formatted;
 
-  // Dynamic font scaling so 15 digits never clip
   const len = formatted.length;
   if (len <= 7) displayEl.style.fontSize = '84px';
   else if (len <= 9) displayEl.style.fontSize = '68px';
@@ -69,10 +66,8 @@ function updateDisplay() {
   else if (len <= 14) displayEl.style.fontSize = '46px';
   else displayEl.style.fontSize = '38px';
 
-  // Smart Backspace vs AC label
   clearBtn.textContent = (!reset && val !== '0' && val !== 'Error') ? '⌫' : 'AC';
 
-  // Live iOS 18 result preview while typing second operand
   if (old !== null && operator && !reset && val !== 'Error') {
     const live = compute(old, Number(val), operator);
     previewEl.textContent = live !== null ? `= ${formatNumberStr(String(live))}` : '';
@@ -80,7 +75,6 @@ function updateDisplay() {
     previewEl.textContent = '';
   }
 
-  // Highlight active operator button
   document.querySelectorAll('.orange[data-op]').forEach((btn) => {
     btn.classList.toggle('active', reset && operator === btn.dataset.op);
   });
@@ -242,13 +236,6 @@ function copyResult() {
   showToast(`Copied ${displayEl.textContent}`);
 }
 
-function toggleSound() {
-  soundEnabled = !soundEnabled;
-  document.getElementById('sound-btn').textContent = soundEnabled ? '🔊' : '🔇';
-  showToast(soundEnabled ? 'Key sound on' : 'Key sound muted');
-}
-
-// Swipe left or right on display to delete digit
 let touchStartX = 0;
 const displayArea = document.getElementById('display-area');
 displayArea.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
@@ -256,7 +243,6 @@ displayArea.addEventListener('touchend', (e) => {
   if (Math.abs(e.changedTouches[0].screenX - touchStartX) > 35) backspace();
 }, { passive: true });
 
-// Sync Chrome status bar color with system Dark/Light mode
 const darkMedia = window.matchMedia('(prefers-color-scheme: dark)');
 function syncThemeColor() {
   document.getElementById('theme-meta').setAttribute('content', darkMedia.matches ? '#000000' : '#f2f2f7');
@@ -264,7 +250,6 @@ function syncThemeColor() {
 darkMedia.addEventListener('change', syncThemeColor);
 syncThemeColor();
 
-// Register real Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
 }
