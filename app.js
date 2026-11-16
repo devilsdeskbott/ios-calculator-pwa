@@ -2,6 +2,7 @@ let val = '0';
 let old = null;
 let operator = null;
 let reset = false;
+let secretBuffer = '';
 let historyData = JSON.parse(localStorage.getItem('ios_calc_history') || '[]');
 
 const displayEl = document.getElementById('display');
@@ -10,7 +11,6 @@ const previewEl = document.getElementById('live-preview');
 const clearBtn = document.getElementById('clear-btn');
 const toastEl = document.getElementById('toast');
 
-// Routes through Android's system volume & respects system mute/vibration settings
 let audioCtx = null;
 function playClick(isOperator = false) {
   try {
@@ -82,6 +82,7 @@ function updateDisplay() {
 
 function num(n) {
   feedback(false);
+  secretBuffer = (secretBuffer + n).slice(-10);
   if (val === 'Error' || reset || val === '0') {
     val = n;
     reset = false;
@@ -93,6 +94,7 @@ function num(n) {
 
 function decimal() {
   feedback(false);
+  secretBuffer = '';
   if (val === 'Error' || reset) {
     val = '0.';
     reset = false;
@@ -108,6 +110,7 @@ function backspace() {
     return;
   }
   feedback(false);
+  secretBuffer = secretBuffer.slice(0, -1);
   if (val.length <= 1 || (val.length === 2 && val.startsWith('-'))) {
     val = '0';
   } else {
@@ -130,6 +133,7 @@ function clearAll() {
   old = null;
   operator = null;
   reset = false;
+  secretBuffer = '';
   exprEl.textContent = '';
   previewEl.textContent = '';
   updateDisplay();
@@ -137,6 +141,7 @@ function clearAll() {
 
 function sign() {
   feedback(false);
+  secretBuffer = '';
   if (val === 'Error' || val === '0') return;
   val = val.startsWith('-') ? val.slice(1) : '-' + val;
   reset = false;
@@ -145,6 +150,7 @@ function sign() {
 
 function percent() {
   feedback(false);
+  secretBuffer = '';
   if (val === 'Error') return;
   const base = (old !== null && (operator === '+' || operator === '−'))
     ? (old * Number(val)) / 100
@@ -156,6 +162,7 @@ function percent() {
 
 function op(o) {
   feedback(true);
+  secretBuffer = '';
   if (val === 'Error') val = '0';
   if (operator && !reset) equal(true);
   old = Number(val);
@@ -167,6 +174,14 @@ function op(o) {
 
 function equal(chaining = false) {
   if (!chaining) feedback(true);
+
+  if (!chaining && old === null && !operator && triggerSecretCode(secretBuffer || val)) {
+    secretBuffer = '';
+    reset = true;
+    return;
+  }
+
+  secretBuffer = '';
   if (old === null || !operator) return;
   const b = Number(val);
   const res = compute(old, b, operator);
@@ -183,6 +198,91 @@ function equal(chaining = false) {
   operator = null;
   reset = true;
   updateDisplay();
+}
+
+// === SECRET EASTER EGG CODES ===
+const secretStyle = document.createElement('style');
+document.head.appendChild(secretStyle);
+let reflexTimer = null;
+let reflexStart = 0;
+
+function triggerSecretCode(code) {
+  if (reflexTimer === 'ready') {
+    const ms = Math.round(performance.now() - reflexStart);
+    reflexTimer = null;
+    exprEl.textContent = 'REFLEX SPEED';
+    displayEl.textContent = `${ms} ms`;
+    val = '0';
+    return true;
+  }
+  if (code.endsWith('1999')) {
+    secretStyle.textContent = `:root { --op-bg: #d4af37 !important; } #display { color: #f5d76e; }`;
+    exprEl.textContent = 'IMPERIUM MODE UNLOCKED';
+    showToast('Executive Gold Active');
+    return true;
+  }
+  if (code.endsWith('2077')) {
+    secretStyle.textContent = `:root { --op-bg: #ff007f !important; } #display { color: #00f5d4; text-shadow: 0 0 18px rgba(0,245,212,0.5); }`;
+    showToast('Cyberpunk Mode Active');
+    return true;
+  }
+  if (code.endsWith('007')) {
+    secretStyle.textContent = `:root { --op-bg: #00c853 !important; } #display, #expression { color: #00ff41; }`;
+    showToast('Stealth Mode Active');
+    return true;
+  }
+  if (code.endsWith('0000')) {
+    secretStyle.textContent = '';
+    exprEl.textContent = '';
+    showToast('Default Theme Restored');
+    updateDisplay();
+    return true;
+  }
+  if (code.endsWith('80085')) {
+    const appEl = document.querySelector('.app');
+    appEl.style.transition = 'transform 0.6s ease';
+    appEl.style.transform = 'rotate(180deg)';
+    setTimeout(() => { appEl.style.transform = 'rotate(0deg)'; }, 4000);
+    return true;
+  }
+  if (code.endsWith('9999')) {
+    let ticks = 0;
+    const scramble = setInterval(() => {
+      displayEl.textContent = Math.floor(100000000 + Math.random() * 900000000);
+      ticks++;
+      if (ticks > 22) {
+        clearInterval(scramble);
+        exprEl.textContent = 'SYSTEM OVERRIDE';
+        displayEl.textContent = 'GRANTED';
+        val = '0';
+        reset = true;
+      }
+    }, 65);
+    return true;
+  }
+  if (code.endsWith('1111')) {
+    exprEl.textContent = 'WAIT FOR GREEN, THEN TAP =';
+    displayEl.textContent = 'READY...';
+    reflexTimer = 'waiting';
+    setTimeout(() => {
+      if (reflexTimer !== 'waiting') return;
+      reflexTimer = 'ready';
+      reflexStart = performance.now();
+      displayEl.style.color = '#30d158';
+      displayEl.textContent = 'TAP = NOW!';
+    }, 1500 + Math.random() * 2500);
+    return true;
+  }
+  if (code.endsWith('1234')) {
+    const savedNote = localStorage.getItem('ios_calc_vault') || '';
+    const updated = prompt('Private Calculator Vault:', savedNote);
+    if (updated !== null) {
+      localStorage.setItem('ios_calc_vault', updated);
+      showToast('Vault Saved');
+    }
+    return true;
+  }
+  return false;
 }
 
 function saveHistory(expr, formattedRes, rawRes) {
